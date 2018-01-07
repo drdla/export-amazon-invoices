@@ -2,14 +2,16 @@ import chalk from 'chalk';
 import commandLineArgs from 'command-line-args';
 import fs from 'fs-extra';
 import leftPad from 'left-pad';
+import listOrdersOfYear from './lib/listOrdersOfYear';
 import numberOfDigits from './lib/numberOfDigits';
 import puppeteer from 'puppeteer';
-import slugify from 'slugify';
 import showUsageHints from './lib/showUsageHints';
+import slugify from 'slugify';
 import {log, logDetail, logError, logStatus} from './lib/log';
 
 import argDefinitions from './lib/argDefinitions';
 import selectors from './lib/selectors';
+import {orderPageBase} from './lib/urls';
 
 const args = commandLineArgs(argDefinitions);
 
@@ -17,14 +19,9 @@ if (!args.hasOwnProperty('email') || !args.hasOwnProperty('password')) {
   showUsageHints();
 }
 
-const orderPageBase = 'https://www.amazon.de/gp/your-account/order-history';
-
-const listOrdersOfYear = (year, offset = 0) =>
-  `${orderPageBase}/ref=oh_aui_pagination_1_2?orderFilter=year-${year}&startIndex=${offset}`;
-
 const resultsPerPage = 10;
 
-// one or more texts in pattern 'Rechnung 1' or 'Rechnung oder Gutschrift 1'
+// invoice links follow pattern 'Rechnung 1' or 'Rechnung oder Gutschrift 1'
 const invoiceLinkRegex = /^Rechnung( oder Gutschrift)?s[0-9]{1,2}/;
 
 const failedExports = [];
