@@ -6,7 +6,7 @@ const usageHints = [
   {
     header: 'Export Amazon Invoices',
     content:
-      'Exports all invoices from a German Amazon account as PDF files.\nRequires the account credentials to log in.',
+      'Mass exports invoices from a German Amazon account as PDF files.\nRequires the account credentials to log in.',
   },
   {
     header: 'Options',

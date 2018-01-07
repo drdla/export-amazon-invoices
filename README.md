@@ -1,6 +1,6 @@
 # Export Amazon Invoices
 
-[Puppeteer](https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md)-based crawler for exporting all invoices from a German Amazon account.
+[Puppeteer](https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md)-based crawler for mass exporting invoices from a German Amazon account.
 
 ## Installation
 
