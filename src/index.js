@@ -29,7 +29,7 @@ const failedExports = [];
 
   // initialize browser
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: false, // FIXME: puppeteer should really run in headless mode, but when it's doing, it can't even log in
   });
   const page = await browser.newPage();
 
@@ -49,7 +49,7 @@ const failedExports = [];
       await page.type(selectors.login.password, args.password);
       await page.click(selectors.login.submit);
 
-      await page.waitForSelector(selectors.list.page);
+      await page.waitFor(selectors.list.page);
     } catch (e) {
       logError(`Could not log in with\n  email     ${args.email}\n  password  ${args.password}`);
       process.exit();
@@ -61,13 +61,12 @@ const failedExports = [];
     const year = args.year[ii];
     logStatus(`Exporting orders of ${year}`);
 
-    const outputFolder = `./output/${year}/`;
+    const outputFolder = `./output/${year}`;
     fs.mkdirs(outputFolder);
 
     await page.goto(listOrders(year, 0), {waitUntil: 'load'});
 
-    const x = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
-    const numberOfOrders = Math.min(x, 3);
+    const numberOfOrders = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
     logStatus(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
@@ -89,26 +88,32 @@ const failedExports = [];
       // meaning we have to increase all orderIndex values by 1
       const orderIndex = i % resultsPerPage === 0 ? resultsPerPage + 1 : i % resultsPerPage + 1;
 
+      // the popover ids start at 3 and Amazon increments them in the order the elements are clicked,
+      // so the first opened popover has #a-popover-3, the next #a-popover-4, #a-popover-5 etc.
+      const popoverSelector = `#a-popover-content-${orderIndex + 1} ${selectors.list.popoverLinks}`;
+
       try {
         const popoverTrigger = await page.$(
           `${selectors.list.order}:nth-of-type(${orderIndex}) ${selectors.list.popoverTrigger}`
         );
         await popoverTrigger.click();
+        await page.waitFor(popoverSelector); // the popover content takes a while to load
+        await page.evaluate(sel => {
+          document.querySelectorAll(sel).forEach(async link => {
+            // invoice links follow either pattern 'Rechnung 1' or pattern 'Rechnung oder Gutschrift 1'
+            const invoiceLinkRegex = /^Rechnung( oder Gutschrift)?\s[0-9]{1,2}/;
+            const isInvoiceLink = invoiceLinkRegex.test(link.innerText);
+            if (isInvoiceLink) {
+              // download invoice(s) to output folder
+              await link.click();
+              // await page._client.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: outputFolder});
 
-        // FIXME: get actual download links
-        await page.waitFor(4000); // give the popover content time to load
-        // the popover ids start at 3 and Amazon increments them in the order the elements are clicked,
-        // so the first opened popover has #a-popover-3, the next #a-popover-4, #a-popover-5 etc.
-        const popoverLinks = await page.$$eval(
-          `#a-popover-content-${orderIndex + 1} ${selectors.list.popoverLinks}`,
-          el => {
-            log('popoverLink', el.innerText, el.innerText.match(invoiceLinkRegex));
-          }
-        );
-
-        // TODO: save invoice(s) into output folder
-
-        savedInvoices++;
+              // increment count of savedInvoices
+              // FIXME: we are in browser context here, I doubt savedInvoices++ will work...
+              savedInvoices++;
+            }
+          });
+        }, popoverSelector);
       } catch (e) {
         logError(`Failed to process order ${orderNumber}, orderIndex ${orderIndex}, page ${resultsPage}`);
         logError(e);
