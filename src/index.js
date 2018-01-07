@@ -38,19 +38,15 @@ const failedExports = [];
     height: 900,
   });
 
-  await page.goto(listOrders(), {waitUntil: 'networkidle'});
+  await page.goto(listOrders(), {waitUntil: 'load'});
 
   const requiresLogin = await page.evaluate(sel => document.querySelectorAll(sel).length > 0, selectors.login.form);
   if (requiresLogin) {
     logStatus(`Logging into Amazon account ${args.email}`);
 
     try {
-      await page.click(selectors.login.email);
-      await page.type(args.email);
-
-      await page.click(selectors.login.password);
-      await page.type(args.password);
-
+      await page.type(selectors.login.email, args.email);
+      await page.type(selectors.login.password, args.password);
       await page.click(selectors.login.submit);
 
       await page.waitForSelector(selectors.list.page);
@@ -68,9 +64,10 @@ const failedExports = [];
     const outputFolder = `./output/${year}/`;
     fs.mkdirs(outputFolder);
 
-    await page.goto(listOrders(year, 0), {waitUntil: 'networkidle'});
+    await page.goto(listOrders(year, 0), {waitUntil: 'load'});
 
-    const numberOfOrders = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
+    const x = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
+    const numberOfOrders = Math.min(x, 3);
     logStatus(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
@@ -81,7 +78,7 @@ const failedExports = [];
         logStatus(`Loading results page ${resultsPage} of ${Math.ceil(numberOfOrders / 10)}`);
 
         const offset = resultsPage * resultsPerPage;
-        await page.goto(listOrders(year, offset), {waitUntil: 'networkidle'});
+        await page.goto(listOrders(year, offset), {waitUntil: 'load'});
       }
 
       const orderNumber = getOrderNumber(i, year, numberOfOrders);
@@ -128,7 +125,7 @@ const failedExports = [];
     logStatus(`${savedInvoices} invoices saved as PDF in folder /output/${year}`);
   }
 
-  // await browser.close();
+  await browser.close();
   logStatus('Export complete');
   console.log(
     ' ',
