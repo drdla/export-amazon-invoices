@@ -1,17 +1,14 @@
 import chalk from 'chalk';
 import commandLineArgs from 'command-line-args';
 import fs from 'fs-extra';
-import leftPad from 'left-pad';
-import listOrdersOfYear from './lib/listOrdersOfYear';
-import numberOfDigits from './lib/numberOfDigits';
+import listOrders from './lib/listOrders';
+import getOrderNumber from './lib/getOrderNumber';
 import puppeteer from 'puppeteer';
 import showUsageHints from './lib/showUsageHints';
-import slugify from 'slugify';
 import {log, logDetail, logError, logStatus} from './lib/log';
 
 import argDefinitions from './lib/argDefinitions';
 import selectors from './lib/selectors';
-import {orderPageBase} from './lib/urls';
 
 const args = commandLineArgs(argDefinitions);
 
@@ -41,7 +38,7 @@ const failedExports = [];
     height: 900,
   });
 
-  await page.goto(orderPageBase, {waitUntil: 'networkidle'});
+  await page.goto(listOrders(), {waitUntil: 'networkidle'});
 
   const requiresLogin = await page.evaluate(sel => document.querySelectorAll(sel).length > 0, selectors.login.form);
   if (requiresLogin) {
@@ -68,26 +65,26 @@ const failedExports = [];
     const year = args.year[ii];
     logStatus(`Exporting orders of ${year}`);
 
-    fs.mkdirs(`./output/${year}`);
+    const outputFolder = `./output/${year}/`;
+    fs.mkdirs(outputFolder);
 
-    await page.goto(listOrdersOfYear(year, 0), {waitUntil: 'networkidle'});
+    await page.goto(listOrders(year, 0), {waitUntil: 'networkidle'});
 
-    const x = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
-    const numberOfOrders = Math.min(x, 50);
+    const numberOfOrders = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
     logStatus(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
       const resultsPage = Math.ceil(i / resultsPerPage);
 
-      if (i % resultsPerPage === 1) {
+      const isFirstResultOnPage = i % resultsPerPage === 1;
+      if (isFirstResultOnPage) {
         logStatus(`Loading results page ${resultsPage} of ${Math.ceil(numberOfOrders / 10)}`);
 
-        await page.goto(listOrdersOfYear(year, resultsPage * resultsPerPage), {
-          waitUntil: 'networkidle',
-        });
+        const offset = resultsPage * resultsPerPage;
+        await page.goto(listOrders(year, offset), {waitUntil: 'networkidle'});
       }
 
-      const orderNumber = slugify(`${year} ${leftPad(i, numberOfDigits(numberOfOrders), '0')}`, '_');
+      const orderNumber = getOrderNumber(i, year, numberOfOrders);
       logDetail(`Exporting invoice(s) for order ${orderNumber}`);
 
       // there is a hidden alert component at the top of the orders list,
@@ -96,43 +93,30 @@ const failedExports = [];
       const orderIndex = i % resultsPerPage === 0 ? resultsPerPage + 1 : i % resultsPerPage + 1;
 
       try {
-        const el = await page.$(`${selectors.list.order}:nth-of-type(${orderIndex}) ${selectors.list.popoverTrigger}`);
+        const popoverTrigger = await page.$(
+          `${selectors.list.order}:nth-of-type(${orderIndex}) ${selectors.list.popoverTrigger}`
+        );
+        await popoverTrigger.click();
 
-        if (el === null) {
-          logError(`Failed to process order ${orderNumber}, orderIndex ${orderIndex}, page ${resultsPage}`);
-          logError(
-            `Could not find popoverTrigger ${selectors.list.order}:nth-of-type(${orderIndex}) ${
-              selectors.list.popoverTrigger
-            }`
-          );
-          const path = `./output/${year}/FAILED__${orderNumber}.png`;
-          await page.screenshot({
-            fullPage: true,
-            path,
-          });
-          failedExports.push(`Order ${orderNumber}, see screenshot ${path}`);
-        } else {
-          await el.click();
-          await page.waitFor(4000); // give the popover content time to load
-          // the popover ids start at 3 and Amazon increments them in the order the elements are clicked,
-          // so the first opened popover has #a-popover-3, the next #a-popover-4, #a-popover-5 etc.
-          const popoverLinks = await page.$$eval(
-            `#a-popover-content-${orderIndex + 1} ${selectors.list.popoverLinks}`,
-            el => {
-              log('popoverLink', el.innerText, el.innerText.match(invoiceLinkRegex));
-            }
-          );
-          // FIXME: get actual download links
+        // FIXME: get actual download links
+        await page.waitFor(4000); // give the popover content time to load
+        // the popover ids start at 3 and Amazon increments them in the order the elements are clicked,
+        // so the first opened popover has #a-popover-3, the next #a-popover-4, #a-popover-5 etc.
+        const popoverLinks = await page.$$eval(
+          `#a-popover-content-${orderIndex + 1} ${selectors.list.popoverLinks}`,
+          el => {
+            log('popoverLink', el.innerText, el.innerText.match(invoiceLinkRegex));
+          }
+        );
 
-          // TODO: save invoice(s) into target folder
+        // TODO: save invoice(s) into output folder
 
-          savedInvoices++;
-        }
+        savedInvoices++;
       } catch (e) {
         logError(`Failed to process order ${orderNumber}, orderIndex ${orderIndex}, page ${resultsPage}`);
         logError(e);
 
-        const path = `./output/${year}/FAILED__${orderNumber}.png`;
+        const path = `${outputFolder}/FAILED__${orderNumber}.png`;
         await page.screenshot({
           fullPage: true,
           path,
