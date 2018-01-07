@@ -6,7 +6,9 @@ const selectors = {
     page: '#yourOrders',
     pager: '#ordersContainer .a-pagination',
     pagerNext: '#ordersContainer .a-pagination .a-last',
-    popoverContent: '.a-popover-content > .a-unordered-list > .a-list-item > a',
+    popover: '.a-popover',
+    popoverContent: '.a-popover .a-popover-content',
+    popoverLinks: '.a-unordered-list .a-list-item a',
     popoverTrigger: '.order-info .actions .a-popover-trigger',
   },
   login: {
