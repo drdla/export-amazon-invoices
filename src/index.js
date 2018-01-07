@@ -105,7 +105,7 @@ const failedExports = [];
             const isInvoiceLink = invoiceLinkRegex.test(link.innerText);
             if (isInvoiceLink) {
               // download invoice(s) to output folder
-              await link.click();
+              // await link.click();
               // await page._client.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: outputFolder});
 
               // increment count of savedInvoices
