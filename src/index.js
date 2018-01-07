@@ -1,8 +1,8 @@
 import chalk from 'chalk';
 import commandLineArgs from 'command-line-args';
 import fs from 'fs-extra';
-import listOrders from './lib/listOrders';
 import getOrderNumber from './lib/getOrderNumber';
+import listOrders from './lib/listOrders';
 import puppeteer from 'puppeteer';
 import showUsageHints from './lib/showUsageHints';
 import {log, logDetail, logError, logStatus} from './lib/log';
@@ -11,15 +11,12 @@ import argDefinitions from './lib/argDefinitions';
 import selectors from './lib/selectors';
 
 const args = commandLineArgs(argDefinitions);
-
 if (!args.hasOwnProperty('email') || !args.hasOwnProperty('password')) {
   showUsageHints();
 }
 
+// pager settings of Amazon
 const resultsPerPage = 10;
-
-// invoice links follow pattern 'Rechnung 1' or 'Rechnung oder Gutschrift 1'
-const invoiceLinkRegex = /^Rechnung( oder Gutschrift)?s[0-9]{1,2}/;
 
 const failedExports = [];
 
@@ -42,6 +39,7 @@ const failedExports = [];
 
   const requiresLogin = await page.evaluate(sel => document.querySelectorAll(sel).length > 0, selectors.login.form);
   if (requiresLogin) {
+    log('');
     logStatus(`Logging into Amazon account ${args.email}`);
 
     try {
@@ -50,6 +48,7 @@ const failedExports = [];
       await page.click(selectors.login.submit);
 
       await page.waitFor(selectors.list.page);
+      logDetail('Logged in successfully');
     } catch (e) {
       logError(`Could not log in with\n  email     ${args.email}\n  password  ${args.password}`);
       process.exit();
@@ -59,6 +58,7 @@ const failedExports = [];
   for (let ii = 0; ii < args.year.length; ii++) {
     let savedInvoices = 0;
     const year = args.year[ii];
+    log('');
     logStatus(`Exporting orders of ${year}`);
 
     const outputFolder = `./output/${year}`;
@@ -66,7 +66,11 @@ const failedExports = [];
 
     await page.goto(listOrders(year, 0), {waitUntil: 'load'});
 
-    const numberOfOrders = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
+    const limit = 999; // maximum orders to process per year; mainly for dev use
+    const numberOfOrders = Math.min(
+      limit,
+      await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10))
+    );
     logStatus(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
@@ -97,16 +101,19 @@ const failedExports = [];
           `${selectors.list.order}:nth-of-type(${orderIndex}) ${selectors.list.popoverTrigger}`
         );
         await popoverTrigger.click();
-        await page.waitFor(popoverSelector); // the popover content takes a while to load
+        await page.waitFor(popoverSelector); // the popover content can take up to 1-3 seconds to load
         await page.evaluate(sel => {
           document.querySelectorAll(sel).forEach(async link => {
             // invoice links follow either pattern 'Rechnung 1' or pattern 'Rechnung oder Gutschrift 1'
             const invoiceLinkRegex = /^Rechnung( oder Gutschrift)?\s[0-9]{1,2}/;
             const isInvoiceLink = invoiceLinkRegex.test(link.innerText);
             if (isInvoiceLink) {
-              // download invoice(s) to output folder
-              // await link.click();
-              // await page._client.send('Page.setDownloadBehavior', {behavior: 'allow', downloadPath: outputFolder});
+              // download invoice to output folder
+              await page._client.send('Page.setDownloadBehavior', {
+                behavior: 'allow',
+                downloadPath: './output/2017', // FIXME: pass outputFolder in here
+              });
+              await link.click();
 
               // increment count of savedInvoices
               // FIXME: we are in browser context here, I doubt savedInvoices++ will work...
@@ -131,15 +138,18 @@ const failedExports = [];
   }
 
   await browser.close();
+  log('');
   logStatus('Export complete');
   console.log(
     ' ',
     chalk.dim('Type'),
     args.year.length === 1 ? `open ./output/${args.year[0]}` : 'open ./output',
-    chalk.dim('to view the files')
+    chalk.dim('to view the exported files')
   );
   if (failedExports.length) {
+    log('');
     logError(`${failedExports.length} failed export${failedExports.length === 1 ? '' : 's'}:`);
     logDetail(failedExports.join('\n  '));
   }
+  log('');
 })();
