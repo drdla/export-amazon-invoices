@@ -1,0 +1,14 @@
+.svn*
+*.exe
+*.pdb
+*.mdb
+bin/
+dist/
+*~
+*.bak
+*.log
+*sw[po]
+*.iml
+.DS_Store
+*.db
+node_modules
