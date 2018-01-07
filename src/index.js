@@ -122,14 +122,14 @@ const failedExports = [];
           path: `./output/${year}/${orderNumber}.png`,
         });
       } catch (e) {
-        failedExports.push(`${orderNumber} (page ${resultsPage}, orderIndex ${orderIndex})`);
         logError(`Did not find popoverTrigger for orderIndex ${orderIndex} (order ${orderNumber})`);
-        logDetail(e);
         logDetail(`Selector: ${selectors.list.order}:nth-child(${orderIndex}) ${selectors.list.popoverTrigger}`);
+        const path = `./output/${year}/FAILED__${orderNumber}.png`;
         await page.screenshot({
           fullPage: true,
-          path: `./output/${year}/FAILED__${orderNumber}.png`,
+          path,
         });
+        failedExports.push(`order ${orderNumber}, see screenshot ${path}`);
       }
     }
 
