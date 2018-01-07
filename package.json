@@ -1,7 +1,7 @@
 {
   "name": "export-amazon-invoices",
   "version": "0.1",
-  "description": "Pupeteer-based crawler for exporting all invoices from a German Amazon account.",
+  "description": "Puppeteer-based crawler for exporting all invoices from a German Amazon account.",
   "main": "index.js",
   "repository": "https://drdla@github.com/drdla/export-amazon-invoices.git",
   "author": "Dominik Rodler <dominik.rodler@acala.io>",
