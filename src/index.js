@@ -1,15 +1,21 @@
+import chalk from 'chalk';
 import commandLineArgs from 'command-line-args';
 import fs from 'fs-extra';
 import leftPad from 'left-pad';
 import numberOfDigits from './lib/numberOfDigits';
 import puppeteer from 'puppeteer';
 import slugify from 'slugify';
+import showUsageHints from './lib/showUsageHints';
 import {log, logDetail, logError, logStatus} from './lib/log';
 
 import argDefinitions from './lib/argDefinitions';
 import selectors from './lib/selectors';
 
 const args = commandLineArgs(argDefinitions);
+
+if (!args.hasOwnProperty('email') || !args.hasOwnProperty('password')) {
+  showUsageHints();
+}
 
 const orderPageBase = 'https://www.amazon.de/gp/your-account/order-history';
 
@@ -42,35 +48,41 @@ const failedExports = [];
 
   const requiresLogin = await page.evaluate(sel => document.querySelectorAll(sel).length > 0, selectors.login.form);
   if (requiresLogin) {
-    logStatus('Logging into your account...');
+    logStatus(`Logging into Amazon account ${args.email}`);
 
-    await page.click(selectors.login.email);
-    await page.type(args.email);
+    try {
+      await page.click(selectors.login.email);
+      await page.type(args.email);
 
-    await page.click(selectors.login.password);
-    await page.type(args.password);
+      await page.click(selectors.login.password);
+      await page.type(args.password);
 
-    await page.click(selectors.login.submit);
+      await page.click(selectors.login.submit);
 
-    await page.waitForSelector(selectors.list.page);
+      await page.waitForSelector(selectors.list.page);
+    } catch (e) {
+      logError(`Could not log in with\n  email     ${args.email}\n  password  ${args.password}`);
+      process.exit();
+    }
   }
 
   for (let ii = 0; ii < args.year.length; ii++) {
+    let savedInvoices = 0;
     const year = args.year[ii];
-    logStatus(`Exporting orders from ${year}...`);
+    logStatus(`Exporting orders from ${year}`);
 
     fs.mkdirs(`./output/${year}`);
 
     await page.goto(listOrdersOfYear(year, 0), {waitUntil: 'networkidle'});
 
     const numberOfOrders = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
-    logStatus(`Starting export of ${numberOfOrders} orders...`);
+    logStatus(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
       const resultsPage = Math.ceil(i / resultsPerPage);
 
       if (i % resultsPerPage === 1) {
-        logStatus(`Loading results page ${resultsPage} of ${Math.ceil(numberOfOrders / 10)}...`);
+        logStatus(`Loading results page ${resultsPage} of ${Math.ceil(numberOfOrders / 10)}`);
 
         await page.goto(listOrdersOfYear(year, resultsPage * resultsPerPage), {
           waitUntil: 'networkidle',
@@ -99,10 +111,11 @@ const failedExports = [];
         // log('popover', popover.getAttribute(className), popover);
 
         // const popoverLinks = await page.$$eval(selectors.list.popoverContent, el => {
-        //   log('popoverLinks', el.innerText, el.innerText.match(invoiceLinkRegex), '...');
+        //   log('popoverLinks', el.innerText, el.innerText.match(invoiceLinkRegex));
         // });
 
         // save invoice(s) into target folder
+        // increase savedInvoices count accordingly
 
         // TEMP: take a screenshot instead of downloading invoice
         // until finding the download links and triggering the download works
@@ -122,10 +135,18 @@ const failedExports = [];
         });
       }
     }
+
+    logStatus(`${savedInvoices} invoices saved as PDF in folder /output/${year}`);
   }
 
   await browser.close();
   logStatus('Export complete');
+  console.log(
+    ' ',
+    chalk.dim('Type'),
+    args.year.length === 1 ? `open ./output/${args.year[0]}` : 'open ./output',
+    chalk.dim('to view the files')
+  );
   if (failedExports.length) {
     logError(`${failedExports.length} failed export${failedExports.length === 1 ? '' : 's'}:`);
     logDetail(failedExports.join('\n  '));
