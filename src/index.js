@@ -66,13 +66,14 @@ const failedExports = [];
   for (let ii = 0; ii < args.year.length; ii++) {
     let savedInvoices = 0;
     const year = args.year[ii];
-    logStatus(`Exporting orders from ${year}`);
+    logStatus(`Exporting orders of ${year}`);
 
     fs.mkdirs(`./output/${year}`);
 
     await page.goto(listOrdersOfYear(year, 0), {waitUntil: 'networkidle'});
 
-    const numberOfOrders = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
+    const x = await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10));
+    const numberOfOrders = Math.min(x, 50);
     logStatus(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
@@ -84,59 +85,66 @@ const failedExports = [];
         await page.goto(listOrdersOfYear(year, resultsPage * resultsPerPage), {
           waitUntil: 'networkidle',
         });
-        // Amazon initially renders just enough results (3) to populate the screen up to the page fold,
-        // so to avoid null orders,
-        // ~~we scroll down a bit to trigger rendering all results!?~~
-        // ~~we wait for two seconds!?~~
-        // await page.waitFor(2000);
       }
 
       const orderNumber = slugify(`${year} ${leftPad(i, numberOfDigits(numberOfOrders), '0')}`, '_');
       logDetail(`Exporting invoice(s) for order ${orderNumber}`);
 
-      // TODO: find better selector?
-      // there is a hidden alert component at the top of the orders list, so we always have to increase the index by 1
+      // there is a hidden alert component at the top of the orders list,
+      // so a selector using nth-child within the ordersContainer has to start at 2,
+      // meaning we have to increase all orderIndex values by 1
       const orderIndex = i % resultsPerPage === 0 ? resultsPerPage + 1 : i % resultsPerPage + 1;
 
       try {
-        const el = await page.$(`${selectors.list.order}:nth-child(${orderIndex}) ${selectors.list.popoverTrigger}`);
-        await el.click();
+        const el = await page.$(`${selectors.list.order}:nth-of-type(${orderIndex}) ${selectors.list.popoverTrigger}`);
 
-        // TODO: wait until spinner in popover has been replaced by content
-        // const popover = await page.$('.a-popover', {visible: true});
+        if (el === null) {
+          logError(`Failed to process order ${orderNumber}, orderIndex ${orderIndex}, page ${resultsPage}`);
+          logError(
+            `Could not find popoverTrigger ${selectors.list.order}:nth-of-type(${orderIndex}) ${
+              selectors.list.popoverTrigger
+            }`
+          );
+          const path = `./output/${year}/FAILED__${orderNumber}.png`;
+          await page.screenshot({
+            fullPage: true,
+            path,
+          });
+          failedExports.push(`Order ${orderNumber}, see screenshot ${path}`);
+        } else {
+          await el.click();
+          await page.waitFor(4000); // give the popover content time to load
+          // the popover ids start at 3 and Amazon increments them in the order the elements are clicked,
+          // so the first opened popover has #a-popover-3, the next #a-popover-4, #a-popover-5 etc.
+          const popoverLinks = await page.$$eval(
+            `#a-popover-content-${orderIndex + 1} ${selectors.list.popoverLinks}`,
+            el => {
+              log('popoverLink', el.innerText, el.innerText.match(invoiceLinkRegex));
+            }
+          );
+          // FIXME: get actual download links
 
-        // log('popover', popover.getAttribute(className), popover);
+          // TODO: save invoice(s) into target folder
 
-        // const popoverLinks = await page.$$eval(selectors.list.popoverContent, el => {
-        //   log('popoverLinks', el.innerText, el.innerText.match(invoiceLinkRegex));
-        // });
-
-        // save invoice(s) into target folder
-        // increase savedInvoices count accordingly
-
-        // TEMP: take a screenshot instead of downloading invoice
-        // until finding the download links and triggering the download works
-        await page.waitFor(100); // give the popover time to render / fade in
-        await page.screenshot({
-          fullPage: true,
-          path: `./output/${year}/${orderNumber}.png`,
-        });
+          savedInvoices++;
+        }
       } catch (e) {
-        logError(`Did not find popoverTrigger for orderIndex ${orderIndex} (order ${orderNumber})`);
-        logDetail(`Selector: ${selectors.list.order}:nth-child(${orderIndex}) ${selectors.list.popoverTrigger}`);
+        logError(`Failed to process order ${orderNumber}, orderIndex ${orderIndex}, page ${resultsPage}`);
+        logError(e);
+
         const path = `./output/${year}/FAILED__${orderNumber}.png`;
         await page.screenshot({
           fullPage: true,
           path,
         });
-        failedExports.push(`order ${orderNumber}, see screenshot ${path}`);
+        failedExports.push(`Order ${orderNumber}, see screenshot ${path}`);
       }
     }
 
     logStatus(`${savedInvoices} invoices saved as PDF in folder /output/${year}`);
   }
 
-  await browser.close();
+  // await browser.close();
   logStatus('Export complete');
   console.log(
     ' ',
