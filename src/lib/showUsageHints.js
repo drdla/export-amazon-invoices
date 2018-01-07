@@ -30,7 +30,7 @@ const usageHints = [
     ],
   },
   {
-    content: 'Project home: [underline]{https://github.com/drdla/export-amazon-invoices}',
+    content: `Project home: [underline]{${require('../../package').homepage}}`,
   },
 ];
 
