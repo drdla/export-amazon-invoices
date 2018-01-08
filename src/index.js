@@ -66,9 +66,8 @@ const failedExports = [];
 
     await page.goto(listOrders(year, 0), {waitUntil: 'load'});
 
-    const limit = 9999; // maximum orders to process per year; mainly for dev use
     const numberOfOrders = Math.min(
-      limit,
+      args.limit,
       await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10))
     );
     logStatus(`Starting export of ${numberOfOrders} orders`);

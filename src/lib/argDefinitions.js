@@ -25,6 +25,16 @@ const argDefinitions = [
     type: Number,
     typeLabel: '[italic]{integer}',
   },
+  {
+    name: 'limit',
+    alias: 'l',
+    multiple: false,
+    defaultValue: 9999,
+    description:
+      'Maximum number of orders to process per year.\nDefaults to 9999.\nPrimarily intended for development work.',
+    type: Number,
+    typeLabel: '[italic]{integer}',
+  },
 ];
 
 export default argDefinitions;
