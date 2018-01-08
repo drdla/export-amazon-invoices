@@ -10,7 +10,7 @@ Install project dependencies with `$ yarn`.
 
 ## Usage
 
-Run project with `$ yarn export --email [email] --password [password] --year [year]`.
+Run project with `$ yarn export --user [user] --password [password] --year [year]`.
 
 It will download all invoices as PDF files and place them in /output/[year]/.
 

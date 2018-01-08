@@ -1,7 +1,7 @@
 const argDefinitions = [
   {
-    name: 'email',
-    alias: 'e',
+    name: 'user',
+    alias: 'u',
     multiple: false,
     description: 'The email of the Amazon account.',
     type: String,

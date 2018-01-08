@@ -11,7 +11,7 @@ import argDefinitions from './lib/argDefinitions';
 import selectors from './lib/selectors';
 
 const args = commandLineArgs(argDefinitions);
-if (!args.hasOwnProperty('email') || !args.hasOwnProperty('password')) {
+if (!args.hasOwnProperty('user') || !args.hasOwnProperty('password')) {
   showUsageHints();
 }
 
@@ -40,17 +40,18 @@ const failedExports = [];
   const requiresLogin = await page.evaluate(sel => document.querySelectorAll(sel).length > 0, selectors.login.form);
   if (requiresLogin) {
     log('');
-    logStatus(`Logging into Amazon account ${args.email}`);
+    logStatus(`Logging into Amazon account ${args.user}`);
 
     try {
-      await page.type(selectors.login.email, args.email);
+      await page.type(selectors.login.user, args.user);
       await page.type(selectors.login.password, args.password);
       await page.click(selectors.login.submit);
 
       await page.waitFor(selectors.list.page);
       logDetail('Logged in successfully');
     } catch (e) {
-      logError(`Could not log in with\n  email     ${args.email}\n  password  ${args.password}`);
+      logError(`Could not log in with\n  user      ${args.user}\n  password  ${args.password}`);
+      log('');
       process.exit();
     }
   }

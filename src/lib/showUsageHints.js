@@ -17,15 +17,15 @@ const usageHints = [
     content: [
       {
         desc: '1. Export all invoices of the [bold]{current} year',
-        example: '$ yarn export -e foo@bar.com -p test1234',
+        example: '$ yarn export --user foo@bar.com --password test1234',
       },
       {
         desc: '2. Export all invoices of a [bold]{given} year',
-        example: '$ yarn export -e foo@bar.com -p test1234 -y 2017',
+        example: '$ yarn export --user foo@bar.com --password test1234 --year 2017',
       },
       {
         desc: '3. Export all invoices of [bold]{multiple} years',
-        example: '$ yarn export -e foo@bar.com -p test1234 -y 2018 2017 2016',
+        example: '$ yarn export --user foo@bar.com --password test1234 --year 2018 2017 2016',
       },
     ],
   },
