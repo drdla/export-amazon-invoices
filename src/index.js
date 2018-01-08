@@ -1,8 +1,9 @@
-import chalk from 'chalk';
 import commandLineArgs from 'command-line-args';
 import fs from 'fs-extra';
 import getOrderNumber from './lib/getOrderNumber';
 import listOrders from './lib/listOrders';
+import logInIfRequired from './lib/logInIfRequired';
+import logResults from './lib/logResults';
 import puppeteer from 'puppeteer';
 import showUsageHints from './lib/showUsageHints';
 import {log, logDetail, logError, logStatus} from './lib/log';
@@ -37,24 +38,7 @@ const failedExports = [];
 
   await page.goto(listOrders(), {waitUntil: 'load'});
 
-  const requiresLogin = await page.evaluate(sel => document.querySelectorAll(sel).length > 0, selectors.login.form);
-  if (requiresLogin) {
-    log('');
-    logStatus(`Logging into Amazon account ${args.user}`);
-
-    try {
-      await page.type(selectors.login.user, args.user);
-      await page.type(selectors.login.password, args.password);
-      await page.click(selectors.login.submit);
-
-      await page.waitFor(selectors.list.page);
-      logDetail('Logged in successfully');
-    } catch (e) {
-      logError(`Could not log in with\n  user      ${args.user}\n  password  ${args.password}`);
-      log('');
-      process.exit();
-    }
-  }
+  await logInIfRequired(page, args);
 
   for (let ii = 0; ii < args.year.length; ii++) {
     let savedInvoices = 0;
@@ -144,18 +128,5 @@ const failedExports = [];
   }
 
   await browser.close();
-  log('');
-  logStatus('Export complete');
-  console.log(
-    ' ',
-    chalk.dim('Type'),
-    args.year.length === 1 ? `open ./output/${args.year[0]}` : 'open ./output',
-    chalk.dim('to view the exported files')
-  );
-  if (failedExports.length) {
-    log('');
-    logError(`${failedExports.length} failed export${failedExports.length === 1 ? '' : 's'}:`);
-    logDetail(failedExports.join('\n  '));
-  }
-  log('');
+  logResults(failedExports, args);
 })();
