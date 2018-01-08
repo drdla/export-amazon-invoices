@@ -3,8 +3,6 @@ const selectors = {
     numOrders: '#controlsContainer .num-orders-for-orders-by-date .num-orders',
     order: '#ordersContainer .order',
     page: '#yourOrders',
-    popover: '.a-popover',
-    popoverContent: '.a-popover .a-popover-content',
     popoverLinks: '.a-unordered-list .a-list-item a',
     popoverTrigger: '.order-info .actions .a-popover-trigger',
   },
