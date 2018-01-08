@@ -2,6 +2,7 @@ import commandLineArgs from 'command-line-args';
 import fs from 'fs-extra';
 import getOrderNumber from './lib/getOrderNumber';
 import listOrders from './lib/listOrders';
+import loadNextPageIfRequired from './lib/loadNextPageIfRequired';
 import logInIfRequired from './lib/logInIfRequired';
 import logResults from './lib/logResults';
 import puppeteer from 'puppeteer';
@@ -12,12 +13,14 @@ import argDefinitions from './lib/argDefinitions';
 import selectors from './lib/selectors';
 
 const args = commandLineArgs(argDefinitions);
-if (!args.hasOwnProperty('user') || !args.hasOwnProperty('password')) {
+
+const credentialsAreMissing = ['user', 'password'].some(k => !args[k]);
+if (credentialsAreMissing) {
   showUsageHints();
 }
 
 // pager settings of Amazon
-const resultsPerPage = 10;
+const resultsPerPage = 10; // TODO: extract to somewhere
 
 const failedExports = [];
 
@@ -58,15 +61,7 @@ const failedExports = [];
     logDetail(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
-      const resultsPage = Math.ceil(i / resultsPerPage);
-
-      const isFirstResultOnPage = i % resultsPerPage === 1;
-      if (isFirstResultOnPage) {
-        logStatus(`Processing results page ${resultsPage} of ${Math.ceil(numberOfOrders / 10)}`);
-
-        const offset = resultsPage * resultsPerPage;
-        await page.goto(listOrders(year, offset), {waitUntil: 'load'});
-      }
+      await loadNextPageIfRequired(page, i, numberOfOrders, year);
 
       const orderNumber = getOrderNumber(i, year, numberOfOrders);
       logDetail(`Exporting invoice(s) for order ${orderNumber}`);
@@ -112,6 +107,7 @@ const failedExports = [];
           });
         }, popoverSelector);
       } catch (e) {
+        const resultsPage = Math.ceil(i / resultsPerPage);
         logError(`Failed to process order ${orderNumber}, orderIndex ${orderIndex}, page ${resultsPage}`);
         logError(e);
 
