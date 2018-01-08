@@ -70,14 +70,14 @@ const failedExports = [];
       args.limit,
       await page.$eval(selectors.list.numOrders, el => parseInt(el.innerText.split(' ')[0], 10))
     );
-    logStatus(`Starting export of ${numberOfOrders} orders`);
+    logDetail(`Starting export of ${numberOfOrders} orders`);
 
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
       const resultsPage = Math.ceil(i / resultsPerPage);
 
       const isFirstResultOnPage = i % resultsPerPage === 1;
       if (isFirstResultOnPage) {
-        logStatus(`Loading results page ${resultsPage} of ${Math.ceil(numberOfOrders / 10)}`);
+        logStatus(`Processing results page ${resultsPage} of ${Math.ceil(numberOfOrders / 10)}`);
 
         const offset = resultsPage * resultsPerPage;
         await page.goto(listOrders(year, offset), {waitUntil: 'load'});
@@ -108,11 +108,17 @@ const failedExports = [];
             const isInvoiceLink = invoiceLinkRegex.test(link.innerText);
             if (isInvoiceLink) {
               // download invoice to output folder
-              await page._client.send('Page.setDownloadBehavior', {
-                behavior: 'allow',
-                downloadPath: './output/2017', // FIXME: pass outputFolder in here
-              });
-              await link.click();
+
+              // // make Chrome download links using the experimental setDownloadBehavior API,
+              // // see https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-setDocumentContent
+              // await page._client.send('Page.setDownloadBehavior', {
+              //   behavior: 'allow',
+              //   downloadPath: './output', // FIXME: pass outputFolder in here
+              // });
+              // await link.click();
+
+              // FIXME: setDownloadBehavior doesn't do fuck all, maybe try
+              // https://github.com/GoogleChrome/puppeteer/issues/610#issuecomment-340160025
 
               // increment count of savedInvoices
               // FIXME: we are in browser context here, I doubt savedInvoices++ will work...
