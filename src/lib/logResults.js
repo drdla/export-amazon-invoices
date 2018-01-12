@@ -4,7 +4,7 @@ import {log, logDetail, logError, logStatus} from './log';
 import selectors from './selectors';
 
 const logResults = (failedExports, args) => {
-  log('');
+  log();
   logStatus('Export complete');
   console.log(
     ' ',
@@ -13,11 +13,11 @@ const logResults = (failedExports, args) => {
     chalk.dim('to view the exported files')
   );
   if (failedExports.length) {
-    log('');
+    log();
     logError(`${failedExports.length} failed export${failedExports.length === 1 ? '' : 's'}:`);
     logDetail(failedExports.join('\n  '));
   }
-  log('');
+  log();
 };
 
 export default logResults;

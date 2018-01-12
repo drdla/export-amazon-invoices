@@ -21,7 +21,6 @@
     "eslint": "^4.15.0",
     "eslint-plugin-import": "^2.8.0",
     "fs-extra": "^5.0.0",
-    "left-pad": "^1.2.0",
     "prettier": "^1.9.2",
     "puppeteer": "^1.0.0-rc",
     "slugify": "^1.2.9"

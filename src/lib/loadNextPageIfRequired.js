@@ -1,8 +1,7 @@
 import listOrders from './listOrders';
 import {logStatus} from './log';
 
-// pager settings of Amazon
-const resultsPerPage = 10; // TODO: extract to somewhere
+import {resultsPerPage} from '../index';
 
 const loadNextPageIfRequired = async (page, index, numberOfOrders, year) => {
   const resultsPage = Math.ceil(index / resultsPerPage);

@@ -6,7 +6,7 @@ const logInIfRequired = async (page, args) => {
   const requiresLogin = await page.evaluate(sel => document.querySelectorAll(sel).length > 0, selectors.login.form);
 
   if (requiresLogin) {
-    log('');
+    log();
     logStatus(`Logging into Amazon account ${args.user}`);
 
     try {
@@ -18,7 +18,7 @@ const logInIfRequired = async (page, args) => {
       logDetail('Logged in successfully');
     } catch (e) {
       logError(`Could not log in with\n  user      ${args.user}\n  password  ${args.password}`);
-      log('');
+      log();
       process.exit();
     }
   }

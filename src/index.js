@@ -20,7 +20,7 @@ if (credentialsAreMissing) {
 }
 
 // pager settings of Amazon
-const resultsPerPage = 10; // TODO: extract to somewhere
+export const resultsPerPage = 10;
 
 const failedExports = [];
 
@@ -46,7 +46,7 @@ const failedExports = [];
   for (let ii = 0; ii < args.year.length; ii++) {
     let savedInvoices = 0;
     const year = args.year[ii];
-    log('');
+    log();
     logStatus(`Exporting orders of ${year}`);
 
     const outputFolder = `./output/${year}`;
@@ -63,7 +63,7 @@ const failedExports = [];
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
       await loadNextPageIfRequired(page, i, numberOfOrders, year);
 
-      const orderNumber = getOrderNumber(i, year, numberOfOrders);
+      const orderNumber = getOrderNumber(i.toString(), year, numberOfOrders);
       logDetail(`Exporting invoice(s) for order ${orderNumber}`);
 
       // there is a hidden alert component at the top of the orders list,
