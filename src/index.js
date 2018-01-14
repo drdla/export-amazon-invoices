@@ -7,10 +7,15 @@ import logInIfRequired from './lib/logInIfRequired';
 import logResults from './lib/logResults';
 import puppeteer from 'puppeteer';
 import showUsageHints from './lib/showUsageHints';
+import {ab2str, str2ab} from './lib/convertBetweenStringAndArrayBuffer.js';
 import {log, logDetail, logError, logStatus} from './lib/log';
 
 import argDefinitions from './lib/argDefinitions';
 import selectors from './lib/selectors';
+// import {invoiceLinkRegex, resultsPerPage} from './lib/constants';
+
+// pager settings of Amazon
+export const resultsPerPage = 10;
 
 const args = commandLineArgs(argDefinitions);
 
@@ -18,9 +23,6 @@ const credentialsAreMissing = ['user', 'password'].some(k => !args[k]);
 if (credentialsAreMissing) {
   showUsageHints();
 }
-
-// pager settings of Amazon
-export const resultsPerPage = 10;
 
 const failedExports = [];
 
@@ -30,9 +32,27 @@ const failedExports = [];
 
   // initialize browser
   const browser = await puppeteer.launch({
+    devtools: true, // have DevTools open; sets 'headless' option to false, when true
     headless: false, // FIXME: puppeteer should really run in headless mode, but when it's doing, it can't even log in
+    args: [
+      '--disable-web-security', // disable CORS to allow PDF download
+    ],
   });
   const page = await browser.newPage();
+
+  // make the function writeABString available on the window object
+  await page.exposeFunction('writeABString', async (strbuf, targetFile) => {
+    return new Promise((resolve, reject) => {
+      // convert the ArrayBuffer string back to an ArrayBufffer,
+      // which in turn is converted to a Buffer
+      const buf = Buffer.from(str2ab(strbuf));
+
+      // try saving the file
+      fs.writeFile(targetFile, buf, (err, text) => (err ? reject(err) : resolve(targetFile)));
+    });
+  });
+
+  // page.on('console', msg => console.log('PAGE LOG:', ...msg.args));
 
   await page.setViewport({
     width: 1440,
@@ -46,7 +66,7 @@ const failedExports = [];
   for (let ii = 0; ii < args.year.length; ii++) {
     let savedInvoices = 0;
     const year = args.year[ii];
-    log();
+    log('');
     logStatus(`Exporting orders of ${year}`);
 
     const outputFolder = `./output/${year}`;
@@ -60,11 +80,19 @@ const failedExports = [];
     );
     logDetail(`Starting export of ${numberOfOrders} orders`);
 
+    // FIXME: find out how to pass this down into browser context; maybe there's a page.exposeVariable method
+    await page.exposeFunction('getContext', async () => ({
+      ab2str,
+      invoiceLinkRegex,
+      outputFolder,
+      savedInvoices,
+    }));
+
     for (let i = 1, l = numberOfOrders; i <= l; i++) {
       await loadNextPageIfRequired(page, i, numberOfOrders, year);
 
       const orderNumber = getOrderNumber(i.toString(), year, numberOfOrders);
-      logDetail(`Exporting invoice(s) for order ${orderNumber}`);
+      logDetail(`Trying to export invoice(s) for order ${orderNumber}`);
 
       // there is a hidden alert component at the top of the orders list,
       // so a selector using nth-child within the ordersContainer has to start at 2,
@@ -73,39 +101,62 @@ const failedExports = [];
 
       // the popover ids start at 3 and Amazon increments them in the order the elements are clicked,
       // so the first opened popover has #a-popover-3, the next #a-popover-4, #a-popover-5 etc.
-      const popoverSelector = `#a-popover-content-${orderIndex + 1} ${selectors.list.popoverLinks}`;
+      const popoverContent = `#a-popover-content-${orderIndex + 1} ${selectors.list.popoverLinks}`;
 
       try {
         const popoverTrigger = await page.$(
           `${selectors.list.order}:nth-of-type(${orderIndex}) ${selectors.list.popoverTrigger}`
         );
         await popoverTrigger.click();
-        await page.waitFor(popoverSelector); // the popover content can take up to 1-3 seconds to load
-        await page.evaluate(sel => {
+        await page.waitFor(popoverContent); // the popover content can take up to 1-3 seconds to load
+
+        await page.evaluate(async (sel, context) => {
+          // we are in browser context now and don't have access to outside variables and functions
+          // unless they are passed down;
+          // all console.logs in here are logged in the console of the Chromium instance;
+
+          // invoice links match either pattern 'Rechnung 1' or pattern 'Rechnung oder Gutschrift 1'
+          const invoiceLinkRegex = /^Rechnung( oder Gutschrift)?\s[0-9]{1,2}/;
+
+          // convert an ArrayBuffer to an UTF-8 string
+          const ab2str = buffer => {
+            const bufView = new Uint8Array(buffer);
+            let addition = Math.pow(2, 8) - 1;
+            let result = '';
+
+            for (let i = 0, l = bufView.length; i < l; i += addition) {
+              if (i + addition > l) {
+                addition = l - i;
+              }
+
+              result += String.fromCharCode.apply(null, bufView.subarray(i, i + addition));
+            }
+
+            return result;
+          };
+
           document.querySelectorAll(sel).forEach(async link => {
-            // invoice links follow either pattern 'Rechnung 1' or pattern 'Rechnung oder Gutschrift 1'
-            const invoiceLinkRegex = /^Rechnung( oder Gutschrift)?\s[0-9]{1,2}/;
             const isInvoiceLink = invoiceLinkRegex.test(link.innerText);
             if (isInvoiceLink) {
               // download invoice to output folder
+              return fetch(link.href, {
+                credentials: 'same-origin', // useful for sending cookies when logged in
+                responseType: 'arraybuffer',
+              })
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => {
+                  const bufstring = ab2str(arrayBuffer);
+                  const path = `./output/${link.href.replace(/[\/:.]/g, '')}.pdf`;
 
-              // // make Chrome download links using the experimental setDownloadBehavior API,
-              // // see https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-setDocumentContent
-              // await page._client.send('Page.setDownloadBehavior', {
-              //   behavior: 'allow',
-              //   downloadPath: './output', // FIXME: pass outputFolder in here
-              // });
-              // await link.click();
-
-              // FIXME: setDownloadBehavior doesn't do fuck all, maybe try
-              // https://github.com/GoogleChrome/puppeteer/issues/610#issuecomment-340160025
+                  return window.writeABString(bufstring, path); // `${outputFolder}/Amazon_Rechnung__${savedInvoices + 1}.pdf`);
+                })
+                .catch(e => console.error('Request failed: ', e));
 
               // increment count of savedInvoices
-              // FIXME: we are in browser context here, I doubt savedInvoices++ will work...
-              savedInvoices++;
+              // savedInvoices++;
             }
           });
-        }, popoverSelector);
+        }, popoverContent);
       } catch (e) {
         const resultsPage = Math.ceil(i / resultsPerPage);
         logError(`Failed to process order ${orderNumber}, orderIndex ${orderIndex}, page ${resultsPage}`);
