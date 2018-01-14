@@ -157,7 +157,7 @@ const failedExports = [];
                   .then(response => response.arrayBuffer())
                   .then(arrayBuffer => {
                     const aBString = ab2str(arrayBuffer);
-                    const path = `${context.outputFolder}/${requestInvoice}Rechnung_${context.orderNumber}.pdf`;
+                    const path = `${context.outputFolder}/${requestInvoice}Amazon_Rechnung_${context.orderNumber}.pdf`;
 
                     return window.writeABString(aBString, path);
                   })
