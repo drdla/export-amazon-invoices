@@ -1,11 +1,13 @@
 import commandLineArgs from 'command-line-args';
 import credentialsAreMissing from './lib/credentialsAreMissing';
 import fs from 'fs-extra';
+import getOrderDetails from './lib/getOrderDetails';
 import getOrderNumber from './lib/getOrderNumber';
 import listOrders from './lib/listOrders';
 import loadNextPageIfRequired from './lib/loadNextPageIfRequired';
 import logInIfRequired from './lib/logInIfRequired';
 import logResults from './lib/logResults';
+import orderDataToCSV from './lib/orderDataToCSV';
 import puppeteer from 'puppeteer';
 import rimrafOutputFolders from './lib/rimrafOutputFolders';
 import showUsageHints from './lib/showUsageHints';
@@ -22,6 +24,7 @@ if (credentialsAreMissing(args)) {
   showUsageHints();
 }
 
+const orderData = [];
 const failedExports = [];
 
 (async () => {
@@ -102,7 +105,13 @@ const failedExports = [];
 
       try {
         const s = selectors.list;
-        const popoverTrigger = await page.$(`${s.order}:nth-of-type(${orderIndex}) ${s.popoverTrigger}`);
+        const order = `${s.order}:nth-of-type(${orderIndex})`;
+
+        // get metadata of order
+        context.orderDetails = await getOrderDetails(page, order);
+        orderData.push(context.orderDetails);
+
+        const popoverTrigger = await page.$(`${order} ${s.popoverTrigger}`);
         await popoverTrigger.click();
         await page.waitFor(popoverContent); // the popover content can take up to 1-3 seconds to load
 
@@ -172,5 +181,7 @@ const failedExports = [];
   }
 
   await browser.close();
-  logResults(failedExports, args);
+  const orderDataFile = './output/order_data.csv';
+  fs.writeFile(orderDataFile, orderDataToCSV(orderData));
+  logResults(failedExports, args, orderDataFile);
 })();

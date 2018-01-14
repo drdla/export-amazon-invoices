@@ -3,9 +3,10 @@ import {log, logDetail, logError, logStatus} from './log';
 
 import selectors from './selectors';
 
-const logResults = (failedExports, args) => {
+const logResults = (failedExports, args, orderDataFile) => {
   log();
   logStatus('Export complete');
+  console.log(' ', chalk.dim('A CSV containing all order details was saved in'), orderDataFile);
   console.log(
     ' ',
     chalk.dim('Type'),
