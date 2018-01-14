@@ -145,6 +145,11 @@ const failedExports = [];
               const isInvoiceLink = invoiceLinkRegex.test(link.innerText);
               if (isInvoiceLink) {
                 // download invoice to output folder
+
+                // for 3rd party merchants only a delivery note is available
+                // and a proper invoice must be requested from the merchant
+                const requestInvoice = link.href.includes('generated_invoices') ? 'ANFORDERN_' : '';
+
                 return fetch(link.href, {
                   credentials: 'same-origin', // useful for sending cookies when logged in
                   responseType: 'arraybuffer',
@@ -152,7 +157,7 @@ const failedExports = [];
                   .then(response => response.arrayBuffer())
                   .then(arrayBuffer => {
                     const aBString = ab2str(arrayBuffer);
-                    const path = `${context.outputFolder}/Rechnung_${context.orderNumber}.pdf`;
+                    const path = `${context.outputFolder}/${requestInvoice}Rechnung_${context.orderNumber}.pdf`;
 
                     return window.writeABString(aBString, path);
                   })

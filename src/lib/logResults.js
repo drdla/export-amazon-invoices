@@ -6,7 +6,7 @@ import selectors from './selectors';
 const logResults = (failedExports, args, orderDataFile) => {
   log();
   logStatus('Export complete');
-  console.log(' ', chalk.dim('A CSV containing all order details was saved in'), orderDataFile);
+  console.log(' ', chalk.dim('The details for every order were saved in'), orderDataFile);
   console.log(
     ' ',
     chalk.dim('Type'),
