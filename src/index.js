@@ -52,6 +52,7 @@ const failedExports = [];
     });
   });
 
+  // pipe log output from browser to console
   // page.on('console', msg => console.log('PAGE LOG:', ...msg.args));
 
   await page.setViewport({
@@ -66,7 +67,7 @@ const failedExports = [];
   for (let ii = 0; ii < args.year.length; ii++) {
     let savedInvoices = 0;
     const year = args.year[ii];
-    log('');
+    log();
     logStatus(`Exporting orders of ${year}`);
 
     const outputFolder = `./output/${year}`;
