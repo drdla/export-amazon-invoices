@@ -1,7 +1,7 @@
 import listOrders from './listOrders';
 import {logStatus} from './log';
 
-import {resultsPerPage} from '../index';
+import {resultsPerPage} from './constants';
 
 const loadNextPageIfRequired = async (page, index, numberOfOrders, year) => {
   const resultsPage = Math.ceil(index / resultsPerPage);
