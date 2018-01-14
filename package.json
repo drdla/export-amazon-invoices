@@ -1,6 +1,6 @@
 {
   "name": "export-amazon-invoices",
-  "version": "0.1",
+  "version": "1.0",
   "description": "Puppeteer-based crawler for mass exporting invoices from a German Amazon account.",
   "main": "index.js",
   "homepage": "https://drdla@github.com/drdla/export-amazon-invoices",
