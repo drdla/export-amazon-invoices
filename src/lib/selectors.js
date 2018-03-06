@@ -14,6 +14,7 @@ const selectors = {
     popoverTrigger: '.order-info .actions .a-popover-trigger',
   },
   login: {
+    continue: '#continue',
     form: 'form[name=signIn]',
     password: '#ap_password',
     submit: '#signInSubmit',

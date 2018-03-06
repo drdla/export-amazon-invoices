@@ -11,6 +11,9 @@ const logInIfRequired = async (page, args) => {
 
     try {
       await page.type(selectors.login.user, args.user);
+      await page.click(selectors.login.continue);
+
+      await page.waitFor(selectors.login.password);
       await page.type(selectors.login.password, args.password);
       await page.click(selectors.login.submit);
 
