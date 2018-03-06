@@ -35,6 +35,15 @@ const argDefinitions = [
     type: Number,
     typeLabel: '[italic]{integer}',
   },
+  {
+    name: 'debugMode',
+    alias: 'd',
+    multiple: false,
+    defaultValue: false,
+    description: 'Run scraper in debug mode.',
+    type: Boolean,
+    typeLabel: '[italic]{boolean}',
+  },
 ];
 
 export default argDefinitions;

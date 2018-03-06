@@ -118,7 +118,7 @@ const failedExports = [];
         await page.evaluate(
           async (sel, context) => {
             // we are in browser context now and don't have access to outside variables and functions
-            // unless they are passed down (done here with as variable 'context');
+            // unless they are passed down (done here with variable 'context');
             // all console.logs in here are logged in the console of the Chromium instance;
 
             // convert an ArrayBuffer to an UTF-8 string
@@ -185,7 +185,10 @@ const failedExports = [];
     logStatus(`Invoices saved as PDF in folder /output/${year}`);
   }
 
-  await browser.close();
+  if (!args.debugMode) {
+    await browser.close();
+  }
+
   const orderDataFile = './output/order_data.csv';
   fs.writeFile(orderDataFile, orderDataToCSV(orderData));
   logResults(failedExports, args, orderDataFile);

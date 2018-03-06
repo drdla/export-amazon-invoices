@@ -27,6 +27,10 @@ const usageHints = [
         desc: '3. Export all invoices of [bold]{multiple} years',
         example: '$ yarn export --user foo@bar.com --password test1234 --year 2018 2017 2016',
       },
+      {
+        desc: '4. Run in debug mode (not headless) and finish after processing three items.',
+        example: '$ yarn export --user foo@bar.com --password test1234 --debugMode --limit 3',
+      },
     ],
   },
   {
